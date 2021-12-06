@@ -62,7 +62,7 @@ fn connect(deps: &mut Instance<MockApi, MockStorage, MockQuerier>, channel_id: &
 
     // then we connect (with counter-party version set)
     let handshake_connect =
-        mock_ibc_channel_connect_ack(channel_id, IbcOrder::Ordered, IBC_VERSION);
+        mock_ibc_channel_connect_ack(channel_id, IbcOrder::Unordered, IBC_VERSION);
     let res: IbcBasicResponse = ibc_channel_connect(deps, mock_env(), handshake_connect).unwrap();
 
     // this should send a WhoAmI request, which is received some blocks later
@@ -74,21 +74,6 @@ fn connect(deps: &mut Instance<MockApi, MockStorage, MockQuerier>, channel_id: &
         }) => assert_eq!(packet_channel.as_str(), channel_id),
         o => panic!("Unexpected message: {:?}", o),
     };
-}
-
-fn who_am_i_response(
-    deps: &mut Instance<MockApi, MockStorage, MockQuerier>,
-    channel_id: &str,
-    account: impl Into<String>,
-) {
-    let packet = PacketMsg::WhoAmI {};
-    let response = AcknowledgementMsg::Ok(WhoAmIResponse {
-        account: account.into(),
-    });
-    let ack = IbcAcknowledgement::encode_json(&response).unwrap();
-    let msg = mock_ibc_packet_ack(channel_id, &packet, ack).unwrap();
-    let res: IbcBasicResponse = ibc_packet_ack(deps, mock_env(), msg).unwrap();
-    assert_eq!(0, res.messages.len());
 }
 
 #[test]
@@ -134,16 +119,6 @@ fn proper_handshake_flow() {
     // check for empty account
     let acct = get_account(&mut deps, channel_id);
     assert!(acct.remote_addr.is_none());
-    assert!(acct.remote_balance.is_empty());
-    assert_eq!(0, acct.last_update_time.nanos());
-
-    // now get feedback from WhoAmI packet
-    let remote_addr = "account-789";
-    who_am_i_response(&mut deps, channel_id, remote_addr);
-
-    // account should be set up
-    let acct = get_account(&mut deps, channel_id);
-    assert_eq!(acct.remote_addr.unwrap(), remote_addr);
     assert!(acct.remote_balance.is_empty());
     assert_eq!(0, acct.last_update_time.nanos());
 }

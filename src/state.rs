@@ -24,7 +24,7 @@ pub struct AccountData {
     /// Since we do not have a way to validate the remote address format, this
     /// must not be of type `Addr`.
     pub remote_addr: Option<String>,
-    pub remote_balance: Vec<Coin>,
+    pub remote_balance: String,
 }
 
 /// accounts is lookup of channel_id to reflect contract

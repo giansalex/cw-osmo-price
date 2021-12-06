@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, CosmosMsg, Empty, Timestamp};
+use cosmwasm_std::{Coin, CosmosMsg, Empty, Timestamp, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -16,24 +16,11 @@ pub enum ExecuteMsg {
     UpdateAdmin {
         admin: String,
     },
-    SendMsgs {
-        channel_id: String,
-        // Note: we don't handle custom messages on remote chains
-        msgs: Vec<CosmosMsg<Empty>>,
-    },
     CheckRemoteBalance {
         channel_id: String,
-    },
-    /// If you sent funds to this contract, it will attempt to ibc transfer them
-    /// to the account on the remote side of this channel.
-    /// If we don't have the address yet, this fails.
-    SendFunds {
-        /// The channel id we use above to talk with the reflect contract
-        reflect_channel_id: String,
-        /// The channel to use for ibctransfer. This is bound to a different
-        /// port and handled by a different module.
-        /// It should connect to the same chain as the reflect_channel_id does
-        transfer_channel_id: String,
+        pool_id: Uint128,
+        token_in: String,
+        token_out: String,
     },
 }
 
@@ -66,7 +53,7 @@ pub struct AccountInfo {
     /// in normal cases, it should be set, but there is a delay between binding
     /// the channel and making a query and in that time it is empty
     pub remote_addr: Option<String>,
-    pub remote_balance: Vec<Coin>,
+    pub remote_balance: String,
 }
 
 impl AccountInfo {
@@ -87,7 +74,7 @@ pub struct AccountResponse {
     /// in normal cases, it should be set, but there is a delay between binding
     /// the channel and making a query and in that time it is empty
     pub remote_addr: Option<String>,
-    pub remote_balance: Vec<Coin>,
+    pub remote_balance: String,
 }
 
 impl From<AccountData> for AccountResponse {

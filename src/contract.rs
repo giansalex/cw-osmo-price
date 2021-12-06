@@ -1,7 +1,4 @@
-use cosmwasm_std::{
-    entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order,
-    QueryResponse, Response, StdError, StdResult,
-};
+use cosmwasm_std::{entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse, Response, StdError, StdResult, Uint128};
 
 use crate::ibc::PACKET_LIFETIME;
 use crate::ibc_msg::PacketMsg;
@@ -29,16 +26,9 @@ pub fn instantiate(
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::UpdateAdmin { admin } => handle_update_admin(deps, info, admin),
-        ExecuteMsg::SendMsgs { channel_id, msgs } => {
-            handle_send_msgs(deps, env, info, channel_id, msgs)
+        ExecuteMsg::CheckRemoteBalance { channel_id, pool_id, token_in, token_out } => {
+            handle_check_remote_balance(deps, env, info, channel_id, pool_id, token_in, token_out)
         }
-        ExecuteMsg::CheckRemoteBalance { channel_id } => {
-            handle_check_remote_balance(deps, env, info, channel_id)
-        }
-        ExecuteMsg::SendFunds {
-            reflect_channel_id,
-            transfer_channel_id,
-        } => handle_send_funds(deps, env, info, reflect_channel_id, transfer_channel_id),
     }
 }
 
@@ -60,51 +50,29 @@ pub fn handle_update_admin(
         .add_attribute("new_admin", cfg.admin))
 }
 
-pub fn handle_send_msgs(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    channel_id: String,
-    msgs: Vec<CosmosMsg>,
-) -> StdResult<Response> {
-    // auth check
-    let cfg = config(deps.storage).load()?;
-    if info.sender != cfg.admin {
-        return Err(StdError::generic_err("Only admin may send messages"));
-    }
-    // ensure the channel exists (not found if not registered)
-    accounts(deps.storage).load(channel_id.as_bytes())?;
-
-    // construct a packet to send
-    let packet = PacketMsg::Dispatch { msgs };
-    let msg = IbcMsg::SendPacket {
-        channel_id,
-        data: to_binary(&packet)?,
-        timeout: env.block.time.plus_seconds(PACKET_LIFETIME).into(),
-    };
-
-    let res = Response::new()
-        .add_message(msg)
-        .add_attribute("action", "handle_send_msgs");
-    Ok(res)
-}
-
 pub fn handle_check_remote_balance(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     channel_id: String,
+    pool_id: Uint128,
+    token_in: String,
+    token_out: String,
 ) -> StdResult<Response> {
     // auth check
-    let cfg = config(deps.storage).load()?;
-    if info.sender != cfg.admin {
-        return Err(StdError::generic_err("Only admin may send messages"));
-    }
+    // let cfg = config(deps.storage).load()?;
+    // if info.sender != cfg.admin {
+    //     return Err(StdError::generic_err("Only admin may send messages"));
+    // }
     // ensure the channel exists (not found if not registered)
     accounts(deps.storage).load(channel_id.as_bytes())?;
 
     // construct a packet to send
-    let packet = PacketMsg::Balances {};
+    let packet = PacketMsg::IbcPricePacket {
+        poolID: pool_id,
+        tokenIn: token_in,
+        tokenOut: token_out,
+    };
     let msg = IbcMsg::SendPacket {
         channel_id,
         data: to_binary(&packet)?,
@@ -114,54 +82,6 @@ pub fn handle_check_remote_balance(
     let res = Response::new()
         .add_message(msg)
         .add_attribute("action", "handle_check_remote_balance");
-    Ok(res)
-}
-
-pub fn handle_send_funds(
-    deps: DepsMut,
-    env: Env,
-    mut info: MessageInfo,
-    reflect_channel_id: String,
-    transfer_channel_id: String,
-) -> StdResult<Response> {
-    // intentionally no auth check
-
-    // require some funds
-    let amount = match info.funds.pop() {
-        Some(coin) => coin,
-        None => {
-            return Err(StdError::generic_err(
-                "you must send the coins you wish to ibc transfer",
-            ))
-        }
-    };
-    // if there are any more coins, reject the message
-    if !info.funds.is_empty() {
-        return Err(StdError::generic_err("you can only ibc transfer one coin"));
-    }
-
-    // load remote account
-    let data = accounts(deps.storage).load(reflect_channel_id.as_bytes())?;
-    let remote_addr = match data.remote_addr {
-        Some(addr) => addr,
-        None => {
-            return Err(StdError::generic_err(
-                "We don't have the remote address for this channel",
-            ))
-        }
-    };
-
-    // construct a packet to send
-    let msg = IbcMsg::Transfer {
-        channel_id: transfer_channel_id,
-        to_address: remote_addr,
-        amount,
-        timeout: env.block.time.plus_seconds(PACKET_LIFETIME).into(),
-    };
-
-    let res = Response::new()
-        .add_message(msg)
-        .add_attribute("action", "handle_send_funds");
     Ok(res)
 }
 
