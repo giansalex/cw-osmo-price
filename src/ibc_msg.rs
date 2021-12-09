@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Coin, ContractResult, CosmosMsg, Uint128};
+use cosmwasm_std::{Binary, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

@@ -1,53 +1,40 @@
-use cosmwasm_std::{entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse, Response, StdError, StdResult, Uint128};
+use cosmwasm_std::{
+    entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse,
+    Response, StdResult, Uint128,
+};
 
 use crate::ibc::PACKET_LIFETIME;
 use crate::ibc_msg::{GammPricePacket, PacketMsg};
 use crate::msg::{
-    AccountInfo, AccountResponse, AdminResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse,
-    QueryMsg,
+    AccountInfo, AccountResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
 };
-use crate::state::{accounts, accounts_read, config, config_read, Config};
+use crate::state::{accounts, accounts_read};
 
 #[entry_point]
 pub fn instantiate(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     _msg: InstantiateMsg,
 ) -> StdResult<Response> {
-    // we store the reflect_id for creating accounts later
-    let cfg = Config { admin: info.sender };
-    config(deps.storage).save(&cfg)?;
-
     Ok(Response::new().add_attribute("action", "instantiate"))
 }
 
 #[entry_point]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
-    match msg {
-        ExecuteMsg::UpdateAdmin { admin } => handle_update_admin(deps, info, admin),
-        ExecuteMsg::CheckRemoteBalance { channel_id, pool_id, token_in, token_out } => {
-            handle_check_remote_balance(deps, env, channel_id, pool_id, token_in, token_out)
-        }
-    }
-}
-
-pub fn handle_update_admin(
+pub fn execute(
     deps: DepsMut,
-    info: MessageInfo,
-    new_admin: String,
+    env: Env,
+    _info: MessageInfo,
+    msg: ExecuteMsg,
 ) -> StdResult<Response> {
-    // auth check
-    let mut cfg = config(deps.storage).load()?;
-    if info.sender != cfg.admin {
-        return Err(StdError::generic_err("Only admin may set new admin"));
+    match msg {
+        ExecuteMsg::CheckRemoteBalance {
+            channel_id,
+            pool_id,
+            token_in,
+            token_out,
+        } => handle_check_remote_balance(deps, env, channel_id, pool_id, token_in, token_out),
     }
-    cfg.admin = deps.api.addr_validate(&new_admin)?;
-    config(deps.storage).save(&cfg)?;
-
-    Ok(Response::new()
-        .add_attribute("action", "handle_update_admin")
-        .add_attribute("new_admin", cfg.admin))
 }
 
 pub fn handle_check_remote_balance(
@@ -64,8 +51,8 @@ pub fn handle_check_remote_balance(
     // construct a packet to send
     let packet = PacketMsg::SpotPrice(GammPricePacket {
         pool_id,
-        token_in: token_in.clone(),
-        token_out: token_out.clone(),
+        token_in,
+        token_out,
     });
 
     let msg = IbcMsg::SendPacket {
@@ -83,7 +70,6 @@ pub fn handle_check_remote_balance(
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
     match msg {
-        QueryMsg::Admin {} => to_binary(&query_admin(deps)?),
         QueryMsg::Account { channel_id } => to_binary(&query_account(deps, channel_id)?),
         QueryMsg::ListAccounts {} => to_binary(&query_list_accounts(deps)?),
     }
@@ -108,13 +94,6 @@ fn query_list_accounts(deps: Deps) -> StdResult<ListAccountsResponse> {
     })
 }
 
-fn query_admin(deps: Deps) -> StdResult<AdminResponse> {
-    let Config { admin } = config_read(deps.storage).load()?;
-    Ok(AdminResponse {
-        admin: admin.into(),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,8 +108,5 @@ mod tests {
         let info = mock_info(CREATOR, &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
-
-        let admin = query_admin(deps.as_ref()).unwrap();
-        assert_eq!(CREATOR, admin.admin.as_str());
     }
 }

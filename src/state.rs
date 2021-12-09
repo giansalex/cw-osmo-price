@@ -1,18 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Addr, Coin, Storage, Timestamp};
-use cosmwasm_storage::{
-    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
-    Singleton,
-};
+use cosmwasm_std::{Storage, Timestamp};
+use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
 
-pub const KEY_CONFIG: &[u8] = b"config";
 pub const PREFIX_ACCOUNTS: &[u8] = b"accounts";
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Config {
-    pub admin: Addr,
-}
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
 pub struct AccountData {
@@ -34,12 +25,4 @@ pub fn accounts(storage: &mut dyn Storage) -> Bucket<AccountData> {
 
 pub fn accounts_read(storage: &dyn Storage) -> ReadonlyBucket<AccountData> {
     bucket_read(storage, PREFIX_ACCOUNTS)
-}
-
-pub fn config(storage: &mut dyn Storage) -> Singleton<Config> {
-    singleton(storage, KEY_CONFIG)
-}
-
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Config> {
-    singleton_read(storage, KEY_CONFIG)
 }

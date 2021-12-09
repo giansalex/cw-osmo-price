@@ -1,6 +1,10 @@
-use cosmwasm_std::{entry_point, from_slice, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg, IbcMsg, IbcOrder, IbcPacketAckMsg, IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult, from_binary};
+use cosmwasm_std::{
+    entry_point, from_binary, from_slice, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
+    IbcChannelConnectMsg, IbcChannelOpenMsg, IbcPacketAckMsg, IbcPacketReceiveMsg,
+    IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
+};
 
-use crate::ibc_msg::{AcknowledgementMsg, BalancesResponse, Ics20Ack, PacketMsg};
+use crate::ibc_msg::{BalancesResponse, Ics20Ack, PacketMsg};
 use crate::state::{accounts, AccountData};
 
 pub const IBC_VERSION: &str = "gamm-1";
@@ -95,12 +99,9 @@ pub fn ibc_packet_ack(
     let packet: PacketMsg = from_slice(&msg.original_packet.data)?;
     let ics20msg: Ics20Ack = from_binary(&msg.acknowledgement.data)?;
     match packet {
-        PacketMsg::SpotPrice { .. } => {
-            acknowledge_balances(deps, env, caller, ics20msg)
-        }
+        PacketMsg::SpotPrice { .. } => acknowledge_balances(deps, env, caller, ics20msg),
     }
 }
-
 
 // receive PacketMsg::Balances response
 fn acknowledge_balances(
@@ -121,14 +122,11 @@ fn acknowledge_balances(
 
     accounts(deps.storage).update(caller.as_bytes(), |acct| -> StdResult<_> {
         match acct {
-            Some(_) => {
-
-                Ok(AccountData {
-                    last_update_time: env.block.time,
-                    remote_addr: None,
-                    remote_balance: price,
-                })
-            }
+            Some(_) => Ok(AccountData {
+                last_update_time: env.block.time,
+                remote_addr: None,
+                remote_balance: price,
+            }),
             None => Err(StdError::generic_err("no account to update")),
         }
     })?;
@@ -157,7 +155,7 @@ mod tests {
         mock_ibc_channel_open_try, mock_ibc_packet_ack, mock_info, MockApi, MockQuerier,
         MockStorage,
     };
-    use cosmwasm_std::{coin, coins, BankMsg, CosmosMsg, IbcAcknowledgement, OwnedDeps};
+    use cosmwasm_std::{coin, coins, BankMsg, CosmosMsg, IbcAcknowledgement, OwnedDeps, IbcOrder};
 
     const CREATOR: &str = "creator";
 
@@ -173,7 +171,8 @@ mod tests {
     // connect will run through the entire handshake to set up a proper connect and
     // save the account (tested in detail in `proper_handshake_flow`)
     fn connect(mut deps: DepsMut, channel_id: &str) {
-        let handshake_open = mock_ibc_channel_open_init(channel_id, IbcOrder::Unordered, IBC_VERSION);
+        let handshake_open =
+            mock_ibc_channel_open_init(channel_id, IbcOrder::Unordered, IBC_VERSION);
         // first we try to open with a valid handshake
         ibc_channel_open(deps.branch(), mock_env(), handshake_open).unwrap();
 
