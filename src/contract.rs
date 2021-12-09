@@ -1,12 +1,13 @@
 use cosmwasm_std::{
     entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse,
-    Response, StdResult, Uint128,
+    Response, StdResult,
 };
 
 use crate::ibc::PACKET_LIFETIME;
 use crate::ibc_msg::{GammPricePacket, PacketMsg};
 use crate::msg::{
     AccountInfo, AccountResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
+    SpotPriceMsg,
 };
 use crate::state::{accounts, accounts_read};
 
@@ -28,37 +29,33 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::CheckRemoteBalance {
-            channel_id,
-            pool_id,
-            token_in,
-            token_out,
-        } => handle_check_remote_balance(deps, env, channel_id, pool_id, token_in, token_out),
+        ExecuteMsg::SpotPrice(msg) => handle_spot_price(deps, env, msg),
     }
 }
 
-pub fn handle_check_remote_balance(
-    deps: DepsMut,
-    env: Env,
-    channel_id: String,
-    pool_id: Uint128,
-    token_in: String,
-    token_out: String,
-) -> StdResult<Response> {
+pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResult<Response> {
     // ensure the channel exists (not found if not registered)
-    accounts(deps.storage).load(channel_id.as_bytes())?;
+    accounts(deps.storage).load(msg.channel.as_bytes())?;
+
+    // delta from user is in seconds
+    let timeout_delta = match msg.timeout {
+        Some(t) => t,
+        None => PACKET_LIFETIME,
+    };
+    // timeout is in nanoseconds
+    let timeout = env.block.time.plus_seconds(timeout_delta);
 
     // construct a packet to send
     let packet = PacketMsg::SpotPrice(GammPricePacket {
-        pool_id,
-        token_in,
-        token_out,
+        pool_id: msg.pool,
+        token_in: msg.token_in,
+        token_out: msg.token_out,
     });
 
     let msg = IbcMsg::SendPacket {
-        channel_id,
+        channel_id: msg.channel,
         data: to_binary(&packet)?,
-        timeout: env.block.time.plus_seconds(PACKET_LIFETIME).into(),
+        timeout: timeout.into(),
     };
 
     let res = Response::new()
