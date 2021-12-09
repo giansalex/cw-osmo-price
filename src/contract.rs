@@ -1,7 +1,7 @@
 use cosmwasm_std::{entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse, Response, StdError, StdResult, Uint128};
 
 use crate::ibc::PACKET_LIFETIME;
-use crate::ibc_msg::PacketMsg;
+use crate::ibc_msg::{GammPricePacket, PacketMsg};
 use crate::msg::{
     AccountInfo, AccountResponse, AdminResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse,
     QueryMsg,
@@ -27,7 +27,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     match msg {
         ExecuteMsg::UpdateAdmin { admin } => handle_update_admin(deps, info, admin),
         ExecuteMsg::CheckRemoteBalance { channel_id, pool_id, token_in, token_out } => {
-            handle_check_remote_balance(deps, env, info, channel_id, pool_id, token_in, token_out)
+            handle_check_remote_balance(deps, env, channel_id, pool_id, token_in, token_out)
         }
     }
 }
@@ -53,26 +53,21 @@ pub fn handle_update_admin(
 pub fn handle_check_remote_balance(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
     channel_id: String,
     pool_id: Uint128,
     token_in: String,
     token_out: String,
 ) -> StdResult<Response> {
-    // auth check
-    // let cfg = config(deps.storage).load()?;
-    // if info.sender != cfg.admin {
-    //     return Err(StdError::generic_err("Only admin may send messages"));
-    // }
     // ensure the channel exists (not found if not registered)
     accounts(deps.storage).load(channel_id.as_bytes())?;
 
     // construct a packet to send
-    let packet = PacketMsg::IbcPricePacket {
-        poolID: pool_id,
-        tokenIn: token_in,
-        tokenOut: token_out,
-    };
+    let packet = PacketMsg::SpotPrice(GammPricePacket {
+        pool_id,
+        token_in: token_in.clone(),
+        token_out: token_out.clone(),
+    });
+
     let msg = IbcMsg::SendPacket {
         channel_id,
         data: to_binary(&packet)?,
