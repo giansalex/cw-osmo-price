@@ -8,7 +8,6 @@ use crate::ibc_msg::{
 use crate::state::{accounts, AccountData};
 
 pub const IBC_VERSION: &str = "gamm-1";
-pub const GAMM_ORDERING: IbcOrder = IbcOrder::Unordered;
 
 // TODO: make configurable?
 /// packets live one hour
@@ -19,9 +18,6 @@ pub const PACKET_LIFETIME: u64 = 60 * 60;
 pub fn ibc_channel_open(_deps: DepsMut, _env: Env, msg: IbcChannelOpenMsg) -> StdResult<()> {
     let channel = msg.channel();
 
-    if channel.order != GAMM_ORDERING {
-        return Err(StdError::generic_err("Only supports ordered channels"));
-    }
     if channel.version.as_str() != IBC_VERSION {
         return Err(StdError::generic_err(format!(
             "Must set version to `{}`",
@@ -45,7 +41,7 @@ pub fn ibc_channel_open(_deps: DepsMut, _env: Env, msg: IbcChannelOpenMsg) -> St
 /// once it's established, we send a WhoAmI message
 pub fn ibc_channel_connect(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     msg: IbcChannelConnectMsg,
 ) -> StdResult<IbcBasicResponse> {
     let channel = msg.channel();
@@ -129,7 +125,7 @@ fn acknowledge_balances(
 
     accounts(deps.storage).update(caller.as_bytes(), |acct| -> StdResult<_> {
         match acct {
-            Some(acct) => {
+            Some(_) => {
 
                 Ok(AccountData {
                     last_update_time: env.block.time,
