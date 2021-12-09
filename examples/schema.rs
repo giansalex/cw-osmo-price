@@ -3,8 +3,8 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use ibc_reflect_send::ibc_msg::{GammPricePacket, PacketMsg};
-use ibc_reflect_send::msg::{
+use ibc_gamm::ibc_msg::{GammPricePacket, PacketMsg};
+use ibc_gamm::msg::{
     AccountResponse, ExecuteMsg, SpotPriceMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
 };
 

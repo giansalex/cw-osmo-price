@@ -593,7 +593,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ibc-reflect-send"
+name = "ibc-gamm"
 version = "0.0.0"
 dependencies = [
  "cosmwasm-schema",
