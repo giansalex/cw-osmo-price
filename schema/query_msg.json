@@ -5,18 +5,6 @@
     {
       "type": "object",
       "required": [
-        "admin"
-      ],
-      "properties": {
-        "admin": {
-          "type": "object"
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "list_accounts"
       ],
       "properties": {

@@ -3,9 +3,9 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use ibc_reflect_send::ibc_msg::PacketMsg;
+use ibc_reflect_send::ibc_msg::{GammPricePacket, PacketMsg};
 use ibc_reflect_send::msg::{
-    AccountResponse, AdminResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
+    AccountResponse, ExecuteMsg, SpotPriceMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
 };
 
 fn main() {
@@ -18,7 +18,8 @@ fn main() {
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(PacketMsg), &out_dir);
-    export_schema(&schema_for!(AdminResponse), &out_dir);
+    export_schema(&schema_for!(GammPricePacket), &out_dir);
+    export_schema(&schema_for!(SpotPriceMsg), &out_dir);
     export_schema(&schema_for!(AccountResponse), &out_dir);
     export_schema(&schema_for!(ListAccountsResponse), &out_dir);
 }
