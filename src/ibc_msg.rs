@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, ContractResult, CosmosMsg, Uint128};
+use cosmwasm_std::{Binary, Coin, ContractResult, CosmosMsg, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -6,12 +6,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PacketMsg {
-    IbcPricePacket { poolID: Uint128, tokenIn: String, tokenOut: String },
+    SpotPrice(GammPricePacket),
 }
 
-/// All IBC acknowledgements are wrapped in `ContractResult`.
-/// The success value depends on the PacketMsg variant.
-pub type AcknowledgementMsg<T> = ContractResult<T>;
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct GammPricePacket {
+    pub pool_id: Uint128,
+    pub token_in: String,
+    pub token_out: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum Ics20Ack {
+    Result(Binary),
+    Error(String),
+}
 
 /// This is the success response we send on ack for PacketMsg::Balance.
 /// Just acknowledge success or error

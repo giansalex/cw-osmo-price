@@ -1,10 +1,6 @@
-use cosmwasm_std::{entry_point, from_slice, DepsMut, Env, IbcBasicResponse,
-    IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg, IbcMsg, IbcOrder,
-    IbcPacketAckMsg, IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult};
+use cosmwasm_std::{entry_point, from_slice, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg, IbcMsg, IbcOrder, IbcPacketAckMsg, IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult, from_binary};
 
-use crate::ibc_msg::{
-    AcknowledgementMsg, BalancesResponse, PacketMsg,
-};
+use crate::ibc_msg::{AcknowledgementMsg, BalancesResponse, Ics20Ack, PacketMsg};
 use crate::state::{accounts, AccountData};
 
 pub const IBC_VERSION: &str = "gamm-1";
@@ -97,10 +93,10 @@ pub fn ibc_packet_ack(
     let caller = msg.original_packet.src.channel_id;
     // we need to parse the ack based on our request
     let packet: PacketMsg = from_slice(&msg.original_packet.data)?;
+    let ics20msg: Ics20Ack = from_binary(&msg.acknowledgement.data)?;
     match packet {
-        PacketMsg::IbcPricePacket { .. } => {
-            let res: AcknowledgementMsg<BalancesResponse> = from_slice(&msg.acknowledgement.data)?;
-            acknowledge_balances(deps, env, caller, res)
+        PacketMsg::SpotPrice { .. } => {
+            acknowledge_balances(deps, env, caller, ics20msg)
         }
     }
 }
@@ -111,12 +107,12 @@ fn acknowledge_balances(
     deps: DepsMut,
     env: Env,
     caller: String,
-    ack: AcknowledgementMsg<BalancesResponse>,
+    ack: Ics20Ack,
 ) -> StdResult<IbcBasicResponse> {
     // ignore errors (but mention in log)
     let BalancesResponse { price } = match ack {
-        AcknowledgementMsg::Ok(res) => res,
-        AcknowledgementMsg::Err(e) => {
+        Ics20Ack::Result(data) => from_binary(&data)?,
+        Ics20Ack::Error(e) => {
             return Ok(IbcBasicResponse::new()
                 .add_attribute("action", "acknowledge_balances")
                 .add_attribute("error", e))
