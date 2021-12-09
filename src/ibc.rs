@@ -4,7 +4,7 @@ use cosmwasm_std::{
     IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
 };
 
-use crate::ibc_msg::{BalancesResponse, Ics20Ack, PacketMsg};
+use crate::ibc_msg::{BalancesResponse, PacketAck, PacketMsg};
 use crate::state::{accounts, AccountData};
 
 pub const IBC_VERSION: &str = "gamm-1";
@@ -97,9 +97,9 @@ pub fn ibc_packet_ack(
     let caller = msg.original_packet.src.channel_id;
     // we need to parse the ack based on our request
     let packet: PacketMsg = from_slice(&msg.original_packet.data)?;
-    let ics20msg: Ics20Ack = from_binary(&msg.acknowledgement.data)?;
+    let ack: PacketAck = from_binary(&msg.acknowledgement.data)?;
     match packet {
-        PacketMsg::SpotPrice { .. } => acknowledge_balances(deps, env, caller, ics20msg),
+        PacketMsg::SpotPrice { .. } => acknowledge_balances(deps, env, caller, ack),
     }
 }
 
@@ -108,12 +108,12 @@ fn acknowledge_balances(
     deps: DepsMut,
     env: Env,
     caller: String,
-    ack: Ics20Ack,
+    ack: PacketAck,
 ) -> StdResult<IbcBasicResponse> {
     // ignore errors (but mention in log)
     let BalancesResponse { price } = match ack {
-        Ics20Ack::Result(data) => from_binary(&data)?,
-        Ics20Ack::Error(e) => {
+        PacketAck::Result(data) => from_binary(&data)?,
+        PacketAck::Error(e) => {
             return Ok(IbcBasicResponse::new()
                 .add_attribute("action", "acknowledge_balances")
                 .add_attribute("error", e))
@@ -155,7 +155,7 @@ mod tests {
         mock_ibc_channel_open_try, mock_ibc_packet_ack, mock_info, MockApi, MockQuerier,
         MockStorage,
     };
-    use cosmwasm_std::{coin, coins, BankMsg, CosmosMsg, IbcAcknowledgement, OwnedDeps, IbcOrder};
+    use cosmwasm_std::{coin, coins, BankMsg, CosmosMsg, IbcAcknowledgement, IbcOrder, OwnedDeps};
 
     const CREATOR: &str = "creator";
 

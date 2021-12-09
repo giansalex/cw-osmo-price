@@ -18,7 +18,7 @@ pub struct GammPricePacket {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
-pub enum Ics20Ack {
+pub enum PacketAck {
     Result(Binary),
     Error(String),
 }
