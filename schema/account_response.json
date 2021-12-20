@@ -4,25 +4,13 @@
   "type": "object",
   "required": [
     "last_update_time",
-    "remote_balance"
+    "remote_spot_price"
   ],
   "properties": {
     "last_update_time": {
-      "description": "last block balance was updated (0 is never)",
-      "allOf": [
-        {
-          "$ref": "#/definitions/Timestamp"
-        }
-      ]
+      "$ref": "#/definitions/Timestamp"
     },
-    "remote_addr": {
-      "description": "in normal cases, it should be set, but there is a delay between binding the channel and making a query and in that time it is empty",
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "remote_balance": {
+    "remote_spot_price": {
       "type": "string"
     }
   },
