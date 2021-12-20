@@ -43,12 +43,8 @@ pub struct ListAccountsResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct AccountInfo {
     pub channel_id: String,
-    /// last block balance was updated (0 is never)
     pub last_update_time: Timestamp,
-    /// in normal cases, it should be set, but there is a delay between binding
-    /// the channel and making a query and in that time it is empty
-    pub remote_addr: Option<String>,
-    pub remote_balance: String,
+    pub remote_spot_price: String,
 }
 
 impl AccountInfo {
@@ -56,28 +52,22 @@ impl AccountInfo {
         AccountInfo {
             channel_id,
             last_update_time: input.last_update_time,
-            remote_addr: input.remote_addr,
-            remote_balance: input.remote_balance,
+            remote_spot_price: input.remote_spot_price,
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct AccountResponse {
-    /// last block balance was updated (0 is never)
     pub last_update_time: Timestamp,
-    /// in normal cases, it should be set, but there is a delay between binding
-    /// the channel and making a query and in that time it is empty
-    pub remote_addr: Option<String>,
-    pub remote_balance: String,
+    pub remote_spot_price: String,
 }
 
 impl From<AccountData> for AccountResponse {
     fn from(input: AccountData) -> Self {
         AccountResponse {
             last_update_time: input.last_update_time,
-            remote_addr: input.remote_addr,
-            remote_balance: input.remote_balance,
+            remote_spot_price: input.remote_spot_price,
         }
     }
 }

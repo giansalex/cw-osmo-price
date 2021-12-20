@@ -3,7 +3,7 @@ use cosmwasm_std::{
     Response, StdResult,
 };
 
-use crate::ibc::PACKET_LIFETIME;
+use crate::ibc::DEFAULT_PACKET_LIFETIME;
 use crate::ibc_msg::{GammPricePacket, PacketMsg};
 use crate::msg::{
     AccountInfo, AccountResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
@@ -40,7 +40,7 @@ pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResul
     // delta from user is in seconds
     let timeout_delta = match msg.timeout {
         Some(t) => t,
-        None => PACKET_LIFETIME,
+        None => DEFAULT_PACKET_LIFETIME,
     };
     // timeout is in nanoseconds
     let timeout = env.block.time.plus_seconds(timeout_delta);
@@ -60,7 +60,7 @@ pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResul
 
     let res = Response::new()
         .add_message(msg)
-        .add_attribute("action", "handle_check_remote_balance");
+        .add_attribute("action", "spot_price");
     Ok(res)
 }
 

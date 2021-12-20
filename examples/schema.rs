@@ -5,7 +5,7 @@ use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use ibc_gamm::ibc_msg::{GammPricePacket, PacketMsg};
 use ibc_gamm::msg::{
-    AccountResponse, ExecuteMsg, SpotPriceMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
+    AccountResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg, SpotPriceMsg,
 };
 
 fn main() {
