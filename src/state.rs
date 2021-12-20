@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Storage, Timestamp};
-use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
-
-pub const PREFIX_ACCOUNTS: &[u8] = b"accounts";
+use cosmwasm_std::Timestamp;
+use cw_storage_plus::Map;
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq)]
 pub struct AccountData {
@@ -11,10 +9,4 @@ pub struct AccountData {
     pub remote_spot_price: String,
 }
 
-pub fn accounts(storage: &mut dyn Storage) -> Bucket<AccountData> {
-    bucket(storage, PREFIX_ACCOUNTS)
-}
-
-pub fn accounts_read(storage: &dyn Storage) -> ReadonlyBucket<AccountData> {
-    bucket_read(storage, PREFIX_ACCOUNTS)
-}
+pub const ACCOUNTS_INFO: Map<&str, AccountData> = Map::new("accounts");

@@ -9,7 +9,7 @@ use crate::msg::{
     AccountInfo, AccountResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
     SpotPriceMsg,
 };
-use crate::state::{accounts, accounts_read};
+use crate::state::ACCOUNTS_INFO;
 
 #[entry_point]
 pub fn instantiate(
@@ -35,7 +35,7 @@ pub fn execute(
 
 pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResult<Response> {
     // ensure the channel exists (not found if not registered)
-    accounts(deps.storage).load(msg.channel.as_bytes())?;
+    ACCOUNTS_INFO.load(deps.storage, &msg.channel)?;
 
     // delta from user is in seconds
     let timeout_delta = match msg.timeout {
@@ -73,13 +73,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
 }
 
 fn query_account(deps: Deps, channel_id: String) -> StdResult<AccountResponse> {
-    let account = accounts_read(deps.storage).load(channel_id.as_bytes())?;
+    let account = ACCOUNTS_INFO.load(deps.storage, &channel_id)?;
     Ok(account.into())
 }
 
 fn query_list_accounts(deps: Deps) -> StdResult<ListAccountsResponse> {
-    let accounts: StdResult<Vec<_>> = accounts_read(deps.storage)
-        .range(None, None, Order::Ascending)
+    let accounts: StdResult<Vec<_>> = ACCOUNTS_INFO
+        .range(deps.storage, None, None, Order::Ascending)
         .map(|r| {
             let (k, account) = r?;
             let channel_id = String::from_utf8(k)?;

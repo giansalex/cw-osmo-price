@@ -5,7 +5,7 @@ use cosmwasm_std::{
 };
 
 use crate::ibc_msg::{BalancesResponse, PacketAck, PacketMsg};
-use crate::state::{accounts, AccountData};
+use crate::state::{AccountData, ACCOUNTS_INFO};
 
 pub const GAMM_VERSION: &str = "gamm-1";
 pub const GAMM_ORDERING: IbcOrder = IbcOrder::Unordered;
@@ -54,7 +54,7 @@ pub fn ibc_channel_connect(
 
     // create an account holder the channel exists (not found if not registered)
     let data = AccountData::default();
-    accounts(deps.storage).save(channel_id.as_bytes(), &data)?;
+    ACCOUNTS_INFO.save(deps.storage, channel_id, &data)?;
 
     Ok(IbcBasicResponse::new()
         .add_attribute("action", "ibc_connect")
@@ -72,7 +72,7 @@ pub fn ibc_channel_close(
 
     // remove the channel
     let channel_id = &channel.endpoint.channel_id;
-    accounts(deps.storage).remove(channel_id.as_bytes());
+    ACCOUNTS_INFO.remove(deps.storage, channel_id);
 
     Ok(IbcBasicResponse::new()
         .add_attribute("action", "ibc_close")
@@ -123,18 +123,14 @@ fn acknowledge_spot_price(
                 .add_attribute("error", e))
         }
     };
-
-    accounts(deps.storage).update(caller.as_bytes(), |acct| -> StdResult<_> {
-        match acct {
-            Some(_) => Ok(AccountData {
-                last_update_time: env.block.time,
-                remote_spot_price: price,
-            }),
-            None => Err(StdError::generic_err("no account to update")),
-        }
+    ACCOUNTS_INFO.update(deps.storage, &caller, |orig| -> StdResult<_> {
+        let mut account = orig.ok_or_else(|| StdError::generic_err("no account to update"))?;
+        account.last_update_time = env.block.time;
+        account.remote_spot_price = price;
+        Ok(account)
     })?;
 
-    Ok(IbcBasicResponse::new().add_attribute("action", "acknowledge_balances"))
+    Ok(IbcBasicResponse::new().add_attribute("action", "receive_spot_price"))
 }
 
 #[entry_point]
