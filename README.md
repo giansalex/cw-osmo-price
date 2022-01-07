@@ -2,6 +2,13 @@
 
 This is a contract to demonstrate osmosis query price over ibc.
 
+## Relayer
+
+Create channel
+```
+hermes create channel uni testing --port-a wasm.juno1hau40wepfjrvu7z549j3zwz955agv0em7wz8p9nkrwczf84ut0eshp4wxv --port-b gamm -v gamm-1
+```
+
 ## Contract
 
 **ExecuteMsg**:
