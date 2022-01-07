@@ -34,3 +34,21 @@ Msg example:
 - `ListAccounts` - to list all accounts tied to open channels. ChannelID,
   account address on the remote chain (if known) and last updated price.
 - `Account` - queries the above data for one channel
+
+Example: 
+_Get last price stored._
+```json
+{
+  "account": {
+    "channel_id": "channel-13"
+  }
+}
+```
+Output:
+```json
+{
+  "channel_id": "channel-13",
+  "last_update_time": 164145882654434,
+  "remote_spot_price": "2.5656456457547"
+}
+```
