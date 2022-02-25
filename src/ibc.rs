@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use crate::ibc_msg::{BalancesResponse, PacketAck, PacketMsg};
 use crate::state::{AccountData, ACCOUNTS_INFO};
 
-pub const GAMM_VERSION: &str = "gamm-1";
+pub const GAMM_VERSION: &str = "cw-query-1";
 pub const GAMM_ORDERING: IbcOrder = IbcOrder::Unordered;
 
 /// default one hour

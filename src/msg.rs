@@ -1,4 +1,4 @@
-use cosmwasm_std::{Timestamp, Uint128};
+use cosmwasm_std::{Timestamp, Uint64};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +19,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct SpotPriceMsg {
     pub channel: String,
-    pub pool: Uint128,
+    pub pool: Uint64,
     pub token_in: String,
     pub token_out: String,
     /// How long the packet lives in seconds. If not specified, use default_timeout
