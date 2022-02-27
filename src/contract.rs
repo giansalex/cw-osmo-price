@@ -1,14 +1,8 @@
-use cosmwasm_std::{
-    entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse,
-    Response, StdResult,
-};
+use cosmwasm_std::{entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse, Response, StdResult, StdError};
 
 use crate::ibc::DEFAULT_PACKET_LIFETIME;
-use crate::ibc_msg::{GammPricePacket, PacketMsg};
-use crate::msg::{
-    AccountInfo, AccountResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
-    SpotPriceMsg,
-};
+use crate::ibc_msg::{EstimateSwapAmountInPacket, GammPricePacket, PacketMsg, SwapAmountInRoute};
+use crate::msg::{AccountInfo, AccountResponse, EstimateSwapMsg, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg, SpotPriceMsg};
 use crate::state::ACCOUNTS_INFO;
 
 #[entry_point]
@@ -30,12 +24,15 @@ pub fn execute(
 ) -> StdResult<Response> {
     match msg {
         ExecuteMsg::SpotPrice(msg) => handle_spot_price(deps, env, msg),
+        ExecuteMsg::EstimateSwap(msg) => handle_estimate_swap(deps, env, msg),
     }
 }
 
 pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResult<Response> {
     // ensure the channel exists (not found if not registered)
-    ACCOUNTS_INFO.load(deps.storage, &msg.channel)?;
+    if !ACCOUNTS_INFO.has(deps.storage, &msg.channel) {
+        return Err(StdError::generic_err("Channel not found"));
+    }
 
     // delta from user is in seconds
     let timeout_delta = match msg.timeout {
@@ -61,6 +58,40 @@ pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResul
     let res = Response::new()
         .add_message(msg)
         .add_attribute("action", "spot_price");
+    Ok(res)
+}
+
+pub fn handle_estimate_swap(deps: DepsMut, env: Env, msg: EstimateSwapMsg) -> StdResult<Response> {
+    // ensure the channel exists (not found if not registered)
+    if !ACCOUNTS_INFO.has(deps.storage, &msg.channel) {
+        return Err(StdError::generic_err("Channel not found"));
+    }
+
+    // delta from user is in seconds
+    let timeout_delta = match msg.timeout {
+        Some(t) => t,
+        None => DEFAULT_PACKET_LIFETIME,
+    };
+    // timeout is in nanoseconds
+    let timeout = env.block.time.plus_seconds(timeout_delta);
+
+    // construct a packet to send
+    let packet = PacketMsg::EstimateSwapAmountIn(EstimateSwapAmountInPacket {
+        pool_id: msg.pool,
+        sender: msg.sender,
+        token_in: msg.amount,
+        routes: vec![SwapAmountInRoute {pool_id: msg.pool, token_out_denom: msg.token_out}]
+    });
+
+    let msg = IbcMsg::SendPacket {
+        channel_id: msg.channel,
+        data: to_binary(&packet)?,
+        timeout: timeout.into(),
+    };
+
+    let res = Response::new()
+        .add_message(msg)
+        .add_attribute("action", "estimate_swap");
     Ok(res)
 }
 

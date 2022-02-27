@@ -22,6 +22,23 @@ Msg example:
 }
 ```
 
+- `EstimateSwap` - this will send `EstimateSwapAmountInPacket` packet to query "Estimate Swap Exact Amount In" 
+- and store the info locally
+
+Msg example:
+```json
+{
+  "spot_price": {
+    "channel": "channel-13",
+    "pool": "1",
+    "sender": "osmo16vj8qhvhvjptnlre8ke8p37f54z9wy68p7hxf6",
+    "amount": "1000000uosmo",
+    "token_out": "uion",
+    "timeout": 900
+  }
+}
+```
+
 **QueryMsg**:
 
 - `ListAccounts` - to list all accounts tied to open channels. ChannelID,

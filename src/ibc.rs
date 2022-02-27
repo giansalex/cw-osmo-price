@@ -4,7 +4,7 @@ use cosmwasm_std::{
     IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
 };
 
-use crate::ibc_msg::{BalancesResponse, PacketAck, PacketMsg};
+use crate::ibc_msg::{PacketAck, PacketMsg, PriceResponse};
 use crate::state::{AccountData, ACCOUNTS_INFO};
 
 pub const GAMM_VERSION: &str = "cw-query-1";
@@ -103,23 +103,25 @@ pub fn ibc_packet_ack(
     let packet: PacketMsg = from_slice(&msg.original_packet.data)?;
     let ack: PacketAck = from_binary(&msg.acknowledgement.data)?;
     match packet {
-        PacketMsg::SpotPrice { .. } => acknowledge_spot_price(deps, env, caller, ack),
+        PacketMsg::SpotPrice { .. } => acknowledge_price_result(deps, env, caller, ack, "receive_spot_price"),
+        PacketMsg::EstimateSwapAmountIn { .. } => acknowledge_price_result(deps, env, caller, ack, "receive_estimate_swap"),
     }
 }
 
-// receive PacketMsg::Balances response
-fn acknowledge_spot_price(
+// receive PacketMsg::SpotPrice response
+fn acknowledge_price_result(
     deps: DepsMut,
     env: Env,
     caller: String,
     ack: PacketAck,
+    action: &str,
 ) -> StdResult<IbcBasicResponse> {
     // ignore errors (but mention in log)
-    let BalancesResponse { price } = match ack {
+    let PriceResponse { price } = match ack {
         PacketAck::Result(data) => from_binary(&data)?,
         PacketAck::Error(e) => {
             return Ok(IbcBasicResponse::new()
-                .add_attribute("action", "receive_spot_price")
+                .add_attribute("action", action)
                 .add_attribute("error", e))
         }
     };
@@ -130,7 +132,7 @@ fn acknowledge_spot_price(
         Ok(account)
     })?;
 
-    Ok(IbcBasicResponse::new().add_attribute("action", "receive_spot_price"))
+    Ok(IbcBasicResponse::new().add_attribute("action", action))
 }
 
 #[entry_point]
