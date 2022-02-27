@@ -28,12 +28,12 @@ Msg example:
 Msg example:
 ```json
 {
-  "spot_price": {
+  "estimate_swap": {
     "channel": "channel-13",
     "pool": "1",
     "sender": "osmo16vj8qhvhvjptnlre8ke8p37f54z9wy68p7hxf6",
-    "amount": "1000000uosmo",
-    "token_out": "uion",
+    "amount": "1000000uion",
+    "token_out": "uosmo",
     "timeout": 900
   }
 }
