@@ -112,8 +112,7 @@ fn query_list_accounts(deps: Deps) -> StdResult<ListAccountsResponse> {
     let accounts: StdResult<Vec<_>> = ACCOUNTS_INFO
         .range(deps.storage, None, None, Order::Ascending)
         .map(|r| {
-            let (k, account) = r?;
-            let channel_id = String::from_utf8(k)?;
+            let (channel_id, account) = r?;
             Ok(AccountInfo::convert(channel_id, account))
         })
         .collect();
