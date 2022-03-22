@@ -59,6 +59,7 @@ pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResul
 
     // construct a packet to send
     let packet = PacketMsg {
+        client_id: None,
         path: request.path().to_string(),
         data: Binary(request.to_bytes()?),
     };
@@ -100,6 +101,7 @@ pub fn handle_estimate_swap(deps: DepsMut, env: Env, msg: EstimateSwapMsg) -> St
     };
     // construct a packet to send
     let packet = PacketMsg {
+        client_id: None,
         path: request.path().to_string(),
         data: Binary(request.to_bytes()?),
     };
