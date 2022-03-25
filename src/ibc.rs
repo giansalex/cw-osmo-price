@@ -90,9 +90,7 @@ pub fn ibc_packet_receive(
     _env: Env,
     _packet: IbcPacketReceiveMsg,
 ) -> StdResult<IbcReceiveResponse> {
-    Ok(IbcReceiveResponse::new()
-        .set_ack(b"{}")
-        .add_attribute("action", "ibc_packet_ack"))
+    unimplemented!();
 }
 
 #[entry_point]
@@ -136,11 +134,13 @@ fn acknowledge_spot_price_result(
     ACCOUNTS_INFO.update(deps.storage, &caller, |orig| -> StdResult<_> {
         let mut account = orig.ok_or_else(|| StdError::generic_err("no account to update"))?;
         account.last_update_time = env.block.time;
-        account.remote_spot_price = result.spot_price;
+        account.remote_spot_price = result.spot_price.to_owned();
         Ok(account)
     })?;
 
-    Ok(IbcBasicResponse::new().add_attribute("action", "receive_spot_price"))
+    Ok(IbcBasicResponse::new()
+        .add_attribute("action", "receive_spot_price")
+        .add_attribute("amount", result.spot_price))
 }
 
 fn acknowledge_estimate_swap_result(
@@ -161,15 +161,16 @@ fn acknowledge_estimate_swap_result(
     ACCOUNTS_INFO.update(deps.storage, &caller, |orig| -> StdResult<_> {
         let mut account = orig.ok_or_else(|| StdError::generic_err("no account to update"))?;
         account.last_update_time = env.block.time;
-        account.remote_spot_price = result.token_out_amount;
+        account.remote_spot_price = result.token_out_amount.to_owned();
         Ok(account)
     })?;
 
-    Ok(IbcBasicResponse::new().add_attribute("action", "receive_estimate_swap"))
+    Ok(IbcBasicResponse::new()
+        .add_attribute("action", "receive_estimate_swap")
+        .add_attribute("amount", result.token_out_amount))
 }
 
 #[entry_point]
-/// we just ignore these now. shall we store some info?
 pub fn ibc_packet_timeout(
     _deps: DepsMut,
     _env: Env,
