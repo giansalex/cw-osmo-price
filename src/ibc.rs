@@ -6,7 +6,6 @@ use cosmwasm_std::{
 use cw_osmo_proto::osmosis::gamm::v1beta1::{
     QuerySpotPriceResponse, QuerySwapExactAmountInResponse,
 };
-use cw_osmo_proto::proto_ext::proto_decode;
 
 use crate::ibc_msg::{PacketAck, PacketMsg};
 use crate::state::{AccountData, ACCOUNTS_INFO};
@@ -16,6 +15,10 @@ pub const GAMM_ORDERING: IbcOrder = IbcOrder::Unordered;
 
 /// default one hour
 pub const DEFAULT_PACKET_LIFETIME: u64 = 60 * 60;
+
+// Allowed paths
+const SPOT_PRICE_PATH: &str = "/osmosis.gamm.v1beta1.Query/SpotPrice";
+const ESTIMATE_SWAP_PATH: &str = "/osmosis.gamm.v1beta1.Query/EstimateSwapExactAmountIn";
 
 #[entry_point]
 /// enforces ordering and versioing constraints
@@ -105,12 +108,8 @@ pub fn ibc_packet_ack(
     let packet: PacketMsg = from_slice(&msg.original_packet.data)?;
     let ack: PacketAck = from_binary(&msg.acknowledgement.data)?;
     match packet.path.as_str() {
-        "/osmosis.gamm.v1beta1.Query/SpotPrice" => {
-            acknowledge_spot_price_result(deps, env, caller, ack)
-        }
-        "/osmosis.gamm.v1beta1.Query/EstimateSwapExactAmountIn" => {
-            acknowledge_estimate_swap_result(deps, env, caller, ack)
-        }
+        SPOT_PRICE_PATH => acknowledge_spot_price_result(deps, env, caller, ack),
+        ESTIMATE_SWAP_PATH => acknowledge_estimate_swap_result(deps, env, caller, ack),
         _ => Err(StdError::generic_err("Unknown query path")),
     }
 }
@@ -177,6 +176,10 @@ pub fn ibc_packet_timeout(
     _msg: IbcPacketTimeoutMsg,
 ) -> StdResult<IbcBasicResponse> {
     Ok(IbcBasicResponse::new().add_attribute("action", "ibc_packet_timeout"))
+}
+
+pub fn proto_decode<M: prost::Message + std::default::Default>(data: &[u8]) -> StdResult<M> {
+    prost::Message::decode(data).map_err(|_| StdError::generic_err("cannot decode proto"))
 }
 
 #[cfg(test)]

@@ -148,6 +148,8 @@ dependencies = [
 [[package]]
 name = "cw-osmo-proto"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "868744e35d785e176297088e15f6f1ae15147ee1a97bd0b2294942f75bc3ac43"
 dependencies = [
  "cosmwasm-std",
  "prost",
@@ -314,6 +316,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-osmo-proto",
  "cw-storage-plus",
+ "prost",
  "schemars",
  "serde",
  "thiserror",
