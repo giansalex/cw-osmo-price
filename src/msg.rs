@@ -14,6 +14,7 @@ pub struct InstantiateMsg {}
 pub enum ExecuteMsg {
     SpotPrice(SpotPriceMsg),
     EstimateSwap(EstimateSwapMsg),
+    JunoHalt {channel: String},
 }
 
 /// This is the message we accept via Receive
@@ -84,3 +85,4 @@ impl From<AccountData> for AccountResponse {
         }
     }
 }
+

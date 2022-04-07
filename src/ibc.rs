@@ -19,6 +19,7 @@ pub const DEFAULT_PACKET_LIFETIME: u64 = 60 * 60;
 // Allowed paths
 const SPOT_PRICE_PATH: &str = "/osmosis.gamm.v1beta1.Query/SpotPrice";
 const ESTIMATE_SWAP_PATH: &str = "/osmosis.gamm.v1beta1.Query/EstimateSwapExactAmountIn";
+const NODE_INFO_PATH: &str = "/cosmos.base.tendermint.v1beta1.Service/GetNodeInfo";
 
 #[entry_point]
 /// enforces ordering and versioing constraints
@@ -110,6 +111,18 @@ pub fn ibc_packet_ack(
     match packet.path.as_str() {
         SPOT_PRICE_PATH => acknowledge_spot_price_result(deps, env, caller, ack),
         ESTIMATE_SWAP_PATH => acknowledge_estimate_swap_result(deps, env, caller, ack),
+        NODE_INFO_PATH => {
+            match ack {
+                PacketAck::Result(_) => {
+                    Ok(IbcBasicResponse::new().add_attribute("action", "acknowledge"))
+                },
+                PacketAck::Error(e) => {
+                    Ok(IbcBasicResponse::new()
+                        .add_attribute("action", "acknowledge")
+                        .add_attribute("error", e))
+                }
+            }
+        },
         _ => Err(StdError::generic_err("Unknown query path")),
     }
 }
