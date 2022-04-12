@@ -3,15 +3,22 @@ use cosmwasm_std::{
     IbcChannelConnectMsg, IbcChannelOpenMsg, IbcOrder, IbcPacketAckMsg, IbcPacketReceiveMsg,
     IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
 };
+use cw_osmo_proto::osmosis::gamm::v1beta1::{
+    QuerySpotPriceResponse, QuerySwapExactAmountInResponse,
+};
 
-use crate::ibc_msg::{BalancesResponse, PacketAck, PacketMsg};
+use crate::ibc_msg::{PacketAck, PacketMsg};
 use crate::state::{AccountData, ACCOUNTS_INFO};
 
-pub const GAMM_VERSION: &str = "gamm-1";
+pub const GAMM_VERSION: &str = "cw-query-1";
 pub const GAMM_ORDERING: IbcOrder = IbcOrder::Unordered;
 
 /// default one hour
 pub const DEFAULT_PACKET_LIFETIME: u64 = 60 * 60;
+
+// Allowed paths
+const SPOT_PRICE_PATH: &str = "/osmosis.gamm.v1beta1.Query/SpotPrice";
+const ESTIMATE_SWAP_PATH: &str = "/osmosis.gamm.v1beta1.Query/EstimateSwapExactAmountIn";
 
 #[entry_point]
 /// enforces ordering and versioing constraints
@@ -86,9 +93,7 @@ pub fn ibc_packet_receive(
     _env: Env,
     _packet: IbcPacketReceiveMsg,
 ) -> StdResult<IbcReceiveResponse> {
-    Ok(IbcReceiveResponse::new()
-        .set_ack(b"{}")
-        .add_attribute("action", "ibc_packet_ack"))
+    unimplemented!();
 }
 
 #[entry_point]
@@ -102,21 +107,23 @@ pub fn ibc_packet_ack(
     // we need to parse the ack based on our request
     let packet: PacketMsg = from_slice(&msg.original_packet.data)?;
     let ack: PacketAck = from_binary(&msg.acknowledgement.data)?;
-    match packet {
-        PacketMsg::SpotPrice { .. } => acknowledge_spot_price(deps, env, caller, ack),
+    match packet.path.as_str() {
+        SPOT_PRICE_PATH => acknowledge_spot_price_result(deps, env, caller, ack),
+        ESTIMATE_SWAP_PATH => acknowledge_estimate_swap_result(deps, env, caller, ack),
+        _ => Err(StdError::generic_err("Unknown query path")),
     }
 }
 
-// receive PacketMsg::Balances response
-fn acknowledge_spot_price(
+// receive PacketMsg::SpotPrice response
+fn acknowledge_spot_price_result(
     deps: DepsMut,
     env: Env,
     caller: String,
     ack: PacketAck,
 ) -> StdResult<IbcBasicResponse> {
     // ignore errors (but mention in log)
-    let BalancesResponse { price } = match ack {
-        PacketAck::Result(data) => from_binary(&data)?,
+    let result: QuerySpotPriceResponse = match ack {
+        PacketAck::Result(data) => proto_decode(data.as_slice())?,
         PacketAck::Error(e) => {
             return Ok(IbcBasicResponse::new()
                 .add_attribute("action", "receive_spot_price")
@@ -126,21 +133,53 @@ fn acknowledge_spot_price(
     ACCOUNTS_INFO.update(deps.storage, &caller, |orig| -> StdResult<_> {
         let mut account = orig.ok_or_else(|| StdError::generic_err("no account to update"))?;
         account.last_update_time = env.block.time;
-        account.remote_spot_price = price;
+        account.remote_spot_price = result.spot_price.to_owned();
         Ok(account)
     })?;
 
-    Ok(IbcBasicResponse::new().add_attribute("action", "receive_spot_price"))
+    Ok(IbcBasicResponse::new()
+        .add_attribute("action", "receive_spot_price")
+        .add_attribute("amount", result.spot_price))
+}
+
+fn acknowledge_estimate_swap_result(
+    deps: DepsMut,
+    env: Env,
+    caller: String,
+    ack: PacketAck,
+) -> StdResult<IbcBasicResponse> {
+    // ignore errors (but mention in log)
+    let result: QuerySwapExactAmountInResponse = match ack {
+        PacketAck::Result(data) => proto_decode(data.as_slice())?,
+        PacketAck::Error(e) => {
+            return Ok(IbcBasicResponse::new()
+                .add_attribute("action", "receive_estimate_swap")
+                .add_attribute("error", e))
+        }
+    };
+    ACCOUNTS_INFO.update(deps.storage, &caller, |orig| -> StdResult<_> {
+        let mut account = orig.ok_or_else(|| StdError::generic_err("no account to update"))?;
+        account.last_update_time = env.block.time;
+        account.remote_spot_price = result.token_out_amount.to_owned();
+        Ok(account)
+    })?;
+
+    Ok(IbcBasicResponse::new()
+        .add_attribute("action", "receive_estimate_swap")
+        .add_attribute("amount", result.token_out_amount))
 }
 
 #[entry_point]
-/// we just ignore these now. shall we store some info?
 pub fn ibc_packet_timeout(
     _deps: DepsMut,
     _env: Env,
     _msg: IbcPacketTimeoutMsg,
 ) -> StdResult<IbcBasicResponse> {
     Ok(IbcBasicResponse::new().add_attribute("action", "ibc_packet_timeout"))
+}
+
+pub fn proto_decode<M: prost::Message + std::default::Default>(data: &[u8]) -> StdResult<M> {
+    prost::Message::decode(data).map_err(|_| StdError::generic_err("cannot decode proto"))
 }
 
 #[cfg(test)]

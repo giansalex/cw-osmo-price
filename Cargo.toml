@@ -1,6 +1,6 @@
 [package]
 name = "ibc-gamm"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Giancarlos Salas <me@giansalex.dev>"]
 edition = "2018"
 publish = false
@@ -22,15 +22,16 @@ incremental = false
 overflow-checks = true
 
 [features]
-backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
+backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
-cosmwasm-std = { version = "1.0.0-beta", features = ["stargate"] }
-cw-storage-plus = "0.10.3"
+prost = "0.9"
+cosmwasm-std = { version = "1.0.0-beta5", features = ["stargate"] }
+cw-storage-plus = "0.12.1"
+cw-osmo-proto = "0.1.0"
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
 
 [dev-dependencies]
-cosmwasm-vm = { version = "1.0.0-beta", default-features = false, features = ["iterator", "stargate"] }
-cosmwasm-schema = "1.0.0-beta"
+cosmwasm-schema = "1.0.0-beta5"

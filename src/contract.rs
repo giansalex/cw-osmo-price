@@ -1,13 +1,15 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse,
-    Response, StdResult,
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse,
+    Response, StdError, StdResult,
 };
+use cw_osmo_proto::osmosis::gamm::v1beta1::{QuerySpotPriceRequest, QuerySwapExactAmountInRequest};
+use cw_osmo_proto::proto_ext::{MessageExt, ProtoUrl};
 
 use crate::ibc::DEFAULT_PACKET_LIFETIME;
-use crate::ibc_msg::{GammPricePacket, PacketMsg};
+use crate::ibc_msg::PacketMsg;
 use crate::msg::{
-    AccountInfo, AccountResponse, ExecuteMsg, InstantiateMsg, ListAccountsResponse, QueryMsg,
-    SpotPriceMsg,
+    AccountInfo, AccountResponse, EstimateSwapMsg, ExecuteMsg, InstantiateMsg,
+    ListAccountsResponse, QueryMsg, SpotPriceMsg,
 };
 use crate::state::ACCOUNTS_INFO;
 
@@ -30,12 +32,15 @@ pub fn execute(
 ) -> StdResult<Response> {
     match msg {
         ExecuteMsg::SpotPrice(msg) => handle_spot_price(deps, env, msg),
+        ExecuteMsg::EstimateSwap(msg) => handle_estimate_swap(deps, env, msg),
     }
 }
 
 pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResult<Response> {
     // ensure the channel exists (not found if not registered)
-    ACCOUNTS_INFO.load(deps.storage, &msg.channel)?;
+    if !ACCOUNTS_INFO.has(deps.storage, &msg.channel) {
+        return Err(StdError::generic_err("Channel not found"));
+    }
 
     // delta from user is in seconds
     let timeout_delta = match msg.timeout {
@@ -45,12 +50,19 @@ pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResul
     // timeout is in nanoseconds
     let timeout = env.block.time.plus_seconds(timeout_delta);
 
+    let request = QuerySpotPriceRequest {
+        pool_id: msg.pool.u64(),
+        token_in_denom: msg.token_in,
+        token_out_denom: msg.token_out,
+        with_swap_fee: false,
+    };
+
     // construct a packet to send
-    let packet = PacketMsg::SpotPrice(GammPricePacket {
-        pool_id: msg.pool,
-        token_in: msg.token_in,
-        token_out: msg.token_out,
-    });
+    let packet = PacketMsg {
+        client_id: None,
+        path: request.path().to_string(),
+        data: Binary(request.to_bytes()?),
+    };
 
     let msg = IbcMsg::SendPacket {
         channel_id: msg.channel,
@@ -61,6 +73,48 @@ pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResul
     let res = Response::new()
         .add_message(msg)
         .add_attribute("action", "spot_price");
+    Ok(res)
+}
+
+pub fn handle_estimate_swap(deps: DepsMut, env: Env, msg: EstimateSwapMsg) -> StdResult<Response> {
+    // ensure the channel exists (not found if not registered)
+    if !ACCOUNTS_INFO.has(deps.storage, &msg.channel) {
+        return Err(StdError::generic_err("Channel not found"));
+    }
+
+    // delta from user is in seconds
+    let timeout_delta = match msg.timeout {
+        Some(t) => t,
+        None => DEFAULT_PACKET_LIFETIME,
+    };
+    // timeout is in nanoseconds
+    let timeout = env.block.time.plus_seconds(timeout_delta);
+
+    let request = QuerySwapExactAmountInRequest {
+        sender: msg.sender,
+        pool_id: msg.pool.u64(),
+        token_in: msg.amount,
+        routes: vec![cw_osmo_proto::osmosis::gamm::v1beta1::SwapAmountInRoute {
+            pool_id: msg.pool.u64(),
+            token_out_denom: msg.token_out,
+        }],
+    };
+    // construct a packet to send
+    let packet = PacketMsg {
+        client_id: None,
+        path: request.path().to_string(),
+        data: Binary(request.to_bytes()?),
+    };
+
+    let msg = IbcMsg::SendPacket {
+        channel_id: msg.channel,
+        data: to_binary(&packet)?,
+        timeout: timeout.into(),
+    };
+
+    let res = Response::new()
+        .add_message(msg)
+        .add_attribute("action", "estimate_swap");
     Ok(res)
 }
 
@@ -81,8 +135,7 @@ fn query_list_accounts(deps: Deps) -> StdResult<ListAccountsResponse> {
     let accounts: StdResult<Vec<_>> = ACCOUNTS_INFO
         .range(deps.storage, None, None, Order::Ascending)
         .map(|r| {
-            let (k, account) = r?;
-            let channel_id = String::from_utf8(k)?;
+            let (channel_id, account) = r?;
             Ok(AccountInfo::convert(channel_id, account))
         })
         .collect();

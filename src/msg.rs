@@ -1,4 +1,4 @@
-use cosmwasm_std::{Timestamp, Uint128};
+use cosmwasm_std::{Timestamp, Uint64};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -13,14 +13,27 @@ pub struct InstantiateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     SpotPrice(SpotPriceMsg),
+    EstimateSwap(EstimateSwapMsg),
 }
 
 /// This is the message we accept via Receive
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct SpotPriceMsg {
     pub channel: String,
-    pub pool: Uint128,
+    pub pool: Uint64,
     pub token_in: String,
+    pub token_out: String,
+    /// How long the packet lives in seconds. If not specified, use default_timeout
+    pub timeout: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct EstimateSwapMsg {
+    pub channel: String,
+    pub pool: Uint64,
+    pub sender: String,
+    /// Token in, ex: 1000000uosmo
+    pub amount: String,
     pub token_out: String,
     /// How long the packet lives in seconds. If not specified, use default_timeout
     pub timeout: Option<u64>,
