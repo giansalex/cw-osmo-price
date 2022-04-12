@@ -1,4 +1,5 @@
 # IBC gamm contract
+[![contracts-ci](https://github.com/giansalex/cw-osmo-price/actions/workflows/cw.yml/badge.svg)](https://github.com/giansalex/cw-osmo-price/actions/workflows/cw.yml)
 
 This is a contract to demonstrate osmosis query price over ibc.
 
