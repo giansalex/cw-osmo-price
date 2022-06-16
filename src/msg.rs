@@ -1,4 +1,4 @@
-use cosmwasm_std::{Timestamp, Uint64};
+use cosmwasm_std::{Timestamp, Uint128, Uint64};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -32,8 +32,8 @@ pub struct EstimateSwapMsg {
     pub channel: String,
     pub pool: Uint64,
     pub sender: String,
-    /// Token in, ex: 1000000uosmo
-    pub amount: String,
+    pub token_in: String,
+    pub amount: Uint128,
     pub token_out: String,
     /// How long the packet lives in seconds. If not specified, use default_timeout
     pub timeout: Option<u64>,
