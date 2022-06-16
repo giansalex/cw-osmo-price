@@ -3,11 +3,8 @@ use cosmwasm_std::{
     IbcChannelConnectMsg, IbcChannelOpenMsg, IbcOrder, IbcPacketAckMsg, IbcPacketReceiveMsg,
     IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
 };
-use cw_osmo_proto::osmosis::gamm::v1beta1::{
-    QuerySpotPriceResponse, QuerySwapExactAmountInResponse,
-};
 
-use crate::ibc_msg::{PacketAck, PacketMsg};
+use crate::ibc_msg::{EstimateSwapAck, GammPacket, PacketAck, PacketMsg, SpotPriceAck};
 use crate::state::{AccountData, ACCOUNTS_INFO};
 
 pub const GAMM_VERSION: &str = "cw-query-1";
@@ -15,10 +12,6 @@ pub const GAMM_ORDERING: IbcOrder = IbcOrder::Unordered;
 
 /// default one hour
 pub const DEFAULT_PACKET_LIFETIME: u64 = 60 * 60;
-
-// Allowed paths
-const SPOT_PRICE_PATH: &str = "/osmosis.gamm.v1beta1.Query/SpotPrice";
-const ESTIMATE_SWAP_PATH: &str = "/osmosis.gamm.v1beta1.Query/EstimateSwapExactAmountIn";
 
 #[entry_point]
 /// enforces ordering and versioing constraints
@@ -107,10 +100,9 @@ pub fn ibc_packet_ack(
     // we need to parse the ack based on our request
     let packet: PacketMsg = from_slice(&msg.original_packet.data)?;
     let ack: PacketAck = from_binary(&msg.acknowledgement.data)?;
-    match packet.path.as_str() {
-        SPOT_PRICE_PATH => acknowledge_spot_price_result(deps, env, caller, ack),
-        ESTIMATE_SWAP_PATH => acknowledge_estimate_swap_result(deps, env, caller, ack),
-        _ => Err(StdError::generic_err("Unknown query path")),
+    match packet.query {
+        GammPacket::SpotPrice(_) => acknowledge_spot_price_result(deps, env, caller, ack),
+        GammPacket::EstimateSwap(_) => acknowledge_estimate_swap_result(deps, env, caller, ack),
     }
 }
 
@@ -121,9 +113,8 @@ fn acknowledge_spot_price_result(
     caller: String,
     ack: PacketAck,
 ) -> StdResult<IbcBasicResponse> {
-    // ignore errors (but mention in log)
-    let result: QuerySpotPriceResponse = match ack {
-        PacketAck::Result(data) => proto_decode(data.as_slice())?,
+    let result: SpotPriceAck = match ack {
+        PacketAck::Result(data) => from_binary(&data)?,
         PacketAck::Error(e) => {
             return Ok(IbcBasicResponse::new()
                 .add_attribute("action", "receive_spot_price")
@@ -133,13 +124,13 @@ fn acknowledge_spot_price_result(
     ACCOUNTS_INFO.update(deps.storage, &caller, |orig| -> StdResult<_> {
         let mut account = orig.ok_or_else(|| StdError::generic_err("no account to update"))?;
         account.last_update_time = env.block.time;
-        account.remote_spot_price = result.spot_price.to_owned();
+        account.remote_spot_price = result.price.to_string();
         Ok(account)
     })?;
 
     Ok(IbcBasicResponse::new()
         .add_attribute("action", "receive_spot_price")
-        .add_attribute("amount", result.spot_price))
+        .add_attribute("amount", result.price.to_string()))
 }
 
 fn acknowledge_estimate_swap_result(
@@ -148,9 +139,8 @@ fn acknowledge_estimate_swap_result(
     caller: String,
     ack: PacketAck,
 ) -> StdResult<IbcBasicResponse> {
-    // ignore errors (but mention in log)
-    let result: QuerySwapExactAmountInResponse = match ack {
-        PacketAck::Result(data) => proto_decode(data.as_slice())?,
+    let result: EstimateSwapAck = match ack {
+        PacketAck::Result(data) => from_binary(&data)?,
         PacketAck::Error(e) => {
             return Ok(IbcBasicResponse::new()
                 .add_attribute("action", "receive_estimate_swap")
@@ -160,13 +150,13 @@ fn acknowledge_estimate_swap_result(
     ACCOUNTS_INFO.update(deps.storage, &caller, |orig| -> StdResult<_> {
         let mut account = orig.ok_or_else(|| StdError::generic_err("no account to update"))?;
         account.last_update_time = env.block.time;
-        account.remote_spot_price = result.token_out_amount.to_owned();
+        account.remote_spot_price = result.amount.to_string();
         Ok(account)
     })?;
 
     Ok(IbcBasicResponse::new()
         .add_attribute("action", "receive_estimate_swap")
-        .add_attribute("amount", result.token_out_amount))
+        .add_attribute("amount", result.amount))
 }
 
 #[entry_point]

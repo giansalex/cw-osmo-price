@@ -1,12 +1,10 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse,
+    entry_point, to_binary, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order, QueryResponse,
     Response, StdError, StdResult,
 };
-use cw_osmo_proto::osmosis::gamm::v1beta1::{QuerySpotPriceRequest, QuerySwapExactAmountInRequest};
-use cw_osmo_proto::proto_ext::{MessageExt, ProtoUrl};
 
 use crate::ibc::DEFAULT_PACKET_LIFETIME;
-use crate::ibc_msg::PacketMsg;
+use crate::ibc_msg::{EstimateSwapPacket, GammPacket, PacketMsg, SpotPricePacket};
 use crate::msg::{
     AccountInfo, AccountResponse, EstimateSwapMsg, ExecuteMsg, InstantiateMsg,
     ListAccountsResponse, QueryMsg, SpotPriceMsg,
@@ -50,18 +48,14 @@ pub fn handle_spot_price(deps: DepsMut, env: Env, msg: SpotPriceMsg) -> StdResul
     // timeout is in nanoseconds
     let timeout = env.block.time.plus_seconds(timeout_delta);
 
-    let request = QuerySpotPriceRequest {
-        pool_id: msg.pool.u64(),
-        token_in_denom: msg.token_in,
-        token_out_denom: msg.token_out,
-        with_swap_fee: false,
-    };
-
     // construct a packet to send
     let packet = PacketMsg {
         client_id: None,
-        path: request.path().to_string(),
-        data: Binary(request.to_bytes()?),
+        query: GammPacket::SpotPrice(SpotPricePacket {
+            pool: msg.pool,
+            token_in: msg.token_in,
+            token_out: msg.token_out,
+        }),
     };
 
     let msg = IbcMsg::SendPacket {
@@ -90,20 +84,16 @@ pub fn handle_estimate_swap(deps: DepsMut, env: Env, msg: EstimateSwapMsg) -> St
     // timeout is in nanoseconds
     let timeout = env.block.time.plus_seconds(timeout_delta);
 
-    let request = QuerySwapExactAmountInRequest {
-        sender: msg.sender,
-        pool_id: msg.pool.u64(),
-        token_in: msg.amount,
-        routes: vec![cw_osmo_proto::osmosis::gamm::v1beta1::SwapAmountInRoute {
-            pool_id: msg.pool.u64(),
-            token_out_denom: msg.token_out,
-        }],
-    };
     // construct a packet to send
     let packet = PacketMsg {
         client_id: None,
-        path: request.path().to_string(),
-        data: Binary(request.to_bytes()?),
+        query: GammPacket::EstimateSwap(EstimateSwapPacket {
+            pool: msg.pool,
+            sender: msg.sender,
+            token_in: msg.token_in,
+            amount: msg.amount,
+            token_out: msg.token_out,
+        }),
     };
 
     let msg = IbcMsg::SendPacket {
